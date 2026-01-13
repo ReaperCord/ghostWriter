@@ -2,12 +2,358 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <title>GhostWriter</title>
+    <title>Ghost Writer</title>
+    <style>
+      /* Reset e variáveis */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg-color: #191919;
+        --text-color: #fff;
+        --output-bg: rgba(217, 217, 217, 0.11);
+        --output-bg-edit: #fff;
+        --text-color-edit: #000;
+
+        /* Estados */
+        --state-capturing: #43a60e;
+        --state-review: #fab319;
+        --state-idle: #4a4947;
+
+        /* Botões */
+        --btn-danger: #de3e3e;
+        --btn-danger-inactive: rgba(222, 62, 62, 0.15);
+        --btn-outline-inactive: rgba(255, 255, 255, 0.15);
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+          sans-serif;
+        background: var(--bg-color);
+        color: var(--text-color);
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      #root {
+        min-height: 100vh;
+      }
+
+      .app-container {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      /* Content */
+      .content {
+        flex: 1;
+        padding: 24px 20px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .title-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      .page-title {
+        font-size: 24px;
+        font-weight: 600;
+      }
+
+      /* State Badges */
+      .state-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .state-badge::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+
+      .state-badge.idle {
+        background: rgba(74, 73, 71, 0.3);
+      }
+
+      .state-badge.idle::before {
+        background: var(--state-idle);
+      }
+
+      .state-badge.capturing {
+        background: rgba(67, 166, 14, 0.2);
+      }
+
+      .state-badge.capturing::before {
+        background: var(--state-capturing);
+        animation: pulse 1.5s infinite;
+      }
+
+      .state-badge.review {
+        background: rgba(250, 179, 25, 0.2);
+      }
+
+      .state-badge.review::before {
+        background: var(--state-review);
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      /* IDLE State */
+      .idle-content {
+        justify-content: space-between;
+      }
+
+      .idle-content .title-row {
+        margin-bottom: 16px;
+      }
+
+      /* Transcription Tray - usado em IDLE */
+      .transcription-tray {
+        flex: 1;
+        background: rgba(217, 217, 217, 0.19);
+        border-radius: 16px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        margin-bottom: 16px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .transcription-tray:hover {
+        background: rgba(217, 217, 217, 0.25);
+      }
+
+      .idle-message {
+        opacity: 0.7;
+        line-height: 1.6;
+        margin: 4px 0;
+      }
+
+      /* Botões inativos no IDLE */
+      .idle-content .btn-outline {
+        border-color: var(--btn-outline-inactive);
+        color: var(--btn-outline-inactive);
+        pointer-events: none;
+      }
+
+      .idle-content .btn-danger {
+        background: var(--btn-danger-inactive);
+        color: rgba(255, 255, 255, 0.15);
+        pointer-events: none;
+      }
+
+      /* CAPTURING State */
+      .transcription-box {
+        flex: 1;
+        background: var(--output-bg);
+        border-radius: 8px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 20px;
+        min-height: 300px;
+      }
+
+      .transcription-content {
+        flex: 1;
+        overflow-y: auto;
+        line-height: 1.8;
+        white-space: pre-wrap;
+        font-size: 14px;
+      }
+
+      .transcription-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        margin-top: 12px;
+        opacity: 0.6;
+        font-size: 13px;
+      }
+
+      .status-icon {
+        animation: pulse 1.5s infinite;
+      }
+
+      /* REVIEW State */
+      .notes-box {
+        flex: 1;
+        background: var(--output-bg);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        overflow-y: auto;
+      }
+
+      .notes-section {
+        margin-bottom: 24px;
+      }
+
+      .notes-section:last-child {
+        margin-bottom: 0;
+      }
+
+      .notes-section h3 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .notes-items {
+        background: transparent;
+        padding: 12px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        min-height: 60px;
+        line-height: 1.6;
+        outline: none;
+        transition: all 0.2s;
+      }
+
+      .notes-items:focus {
+        background: var(--output-bg-edit);
+        color: var(--text-color-edit);
+        border-color: var(--state-review);
+      }
+
+      .note-item {
+        margin-bottom: 8px;
+        padding-left: 16px;
+        position: relative;
+      }
+
+      .note-item::before {
+        content: "•";
+        position: absolute;
+        left: 0;
+      }
+
+      .note-item:last-child {
+        margin-bottom: 0;
+      }
+
+      .empty-section {
+        opacity: 0.5;
+        font-style: italic;
+        padding: 12px;
+      }
+
+      /* Buttons */
+      .button-group {
+        display: flex;
+        gap: 12px;
+        justify-content: stretch;
+      }
+
+      .button-group .btn {
+        flex: 1;
+      }
+
+      .btn {
+        padding: 14px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+      }
+
+      .btn-primary {
+        background: var(--state-capturing);
+        color: var(--text-color);
+      }
+
+      .btn-primary:hover {
+        background: #3d9a0d;
+      }
+
+      .btn-outline {
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--text-color);
+      }
+
+      .btn-outline:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .btn-danger {
+        background: var(--btn-danger);
+        color: var(--text-color);
+      }
+
+      .btn-danger:hover {
+        background: #c93535;
+      }
+
+      .btn-stealth {
+        background: transparent;
+        color: var(--text-color);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        font-size: 12px;
+        padding: 8px 16px;
+      }
+
+      .btn-stealth:hover {
+        border-color: var(--text-color);
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+    </style>
   </head>
   <body>
-  <div id="root"></div>
+    <div id="root"></div>
 
-  <script type="module" src="./dist/renderer/renderer.js"></script>
-</body>
-
+    <script type="module" src="./dist/renderer/renderer.js"></script>
+  </body>
 </html>
