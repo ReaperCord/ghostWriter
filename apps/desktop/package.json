@@ -1,0 +1,19 @@
+{
+  "name": "desktop",
+  "version": "0.1.0",
+  "description": "GhostWriter Desktop App",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "npm run build && electron ."
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "electron": "^39.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "18.19.0",
+    "typescript": "^5.9.3"
+  }
+}
+
