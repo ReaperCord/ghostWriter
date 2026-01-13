@@ -1,16 +1,19 @@
-import { app, BrowserWindow } from "electron";
-import path from "path";
+import { app, BrowserWindow, ipcMain } from "electron";
+import * as path from "path";
 import { StateMachine } from "./state/StateMachine";
-import { ipcMain } from "electron";
 
 const stateMachine = new StateMachine();
+
+console.log("Estado inicial:", stateMachine.getState());
 
 ipcMain.handle("get-app-state", () => {
   return stateMachine.getState();
 });
 
+ipcMain.handle("dispatch-event", (_event, stateEvent) => {
+  return stateMachine.dispatch(stateEvent);
+});
 
-console.log("Estado inicial:", stateMachine.getState());
 
 
 function createWindow() {
@@ -35,8 +38,6 @@ function createWindow() {
   win.webContents.on("did-finish-load", () => {
     console.log("HTML carregou com sucesso");
   });
-
-  win.webContents.openDevTools();
 }
 
 app.whenReady().then(createWindow);
