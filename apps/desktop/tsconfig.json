@@ -1,13 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "CommonJS",
+    "module": "ES2020",        // 👈 AQUI ESTÁ A CHAVE
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,
     "esModuleInterop": true,
-
-    "types": ["node"],
     "skipLibCheck": true
   },
   "include": ["src"]
