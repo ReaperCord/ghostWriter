@@ -1,12 +1,15 @@
 export {};
 
 type AppState = "IDLE" | "CAPTURING" | "REVIEW";
+type Settings = { stealthEnabled: boolean };
 
 declare global {
   interface Window {
     ghostWriter: {
       getAppState: () => Promise<AppState>;
       dispatchEvent: (event: { type: string }) => Promise<AppState>;
+      getSettings: () => Promise<Settings>;
+      toggleStealth: () => Promise<Settings>;
     };
   }
 }
@@ -15,11 +18,19 @@ const root = document.getElementById("root")!;
 
 async function render() {
   const state = await window.ghostWriter.getAppState();
+  const settings = await window.ghostWriter.getSettings();
 
   let controls = "";
 
   if (state === "IDLE") {
-    controls = `<button id="start">Iniciar reunião</button>`;
+    const stealthStatus = settings.stealthEnabled ? "ON" : "OFF";
+    controls = `
+      <button id="start">Iniciar reunião</button>
+      <hr>
+      <div class="settings">
+        <button id="toggle-stealth">Stealth Mode: ${stealthStatus}</button>
+      </div>
+    `;
   }
 
   if (state === "CAPTURING") {
@@ -50,6 +61,13 @@ function wireEvents(state: AppState) {
         await window.ghostWriter.dispatchEvent({
           type: "START_MEETING"
         });
+        render();
+      });
+
+    document
+      .getElementById("toggle-stealth")
+      ?.addEventListener("click", async () => {
+        await window.ghostWriter.toggleStealth();
         render();
       });
   }
