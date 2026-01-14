@@ -34,18 +34,23 @@
           sans-serif;
         background: var(--bg-color);
         color: var(--text-color);
-        min-height: 100vh;
-        overflow-x: hidden;
+        height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
       }
 
       #root {
-        min-height: 100vh;
+        height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
       }
 
       .app-container {
         display: flex;
         flex-direction: column;
-        min-height: 100vh;
+        height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
       }
 
       /* Content */
@@ -171,6 +176,17 @@
       }
 
       /* CAPTURING State */
+      .capturing-content {
+        flex: none !important; /* Sobrescreve o flex: 1 do .content */
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        max-height: 100vh;
+        padding: 24px 20px;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+
       .transcription-box {
         flex: 1;
         background: var(--output-bg);
@@ -179,15 +195,38 @@
         display: flex;
         flex-direction: column;
         margin-bottom: 20px;
-        min-height: 300px;
+        min-height: 0; /* Importante para flex shrink funcionar */
+        overflow: hidden;
       }
 
       .transcription-content {
         flex: 1;
         overflow-y: auto;
-        line-height: 1.8;
-        white-space: pre-wrap;
+        line-height: 1.6;
         font-size: 14px;
+        scroll-behavior: smooth;
+        min-height: 0; /* Permite shrink dentro do flex container */
+      }
+
+      .transcription-paragraph {
+        margin-bottom: 16px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 6px;
+        border-left: 3px solid var(--state-capturing);
+      }
+
+      .transcription-paragraph:last-child {
+        margin-bottom: 0;
+        background: rgba(67, 166, 14, 0.15);
+        border-left-color: var(--state-capturing);
+      }
+
+      .transcription-placeholder {
+        opacity: 0.5;
+        font-style: italic;
+        text-align: center;
+        padding: 40px 20px;
       }
 
       .transcription-status {
@@ -206,6 +245,17 @@
       }
 
       /* REVIEW State */
+      .review-content {
+        flex: none !important;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        max-height: 100vh;
+        padding: 24px 20px;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+
       .notes-box {
         flex: 1;
         background: var(--output-bg);
@@ -213,6 +263,7 @@
         padding: 20px;
         margin-bottom: 20px;
         overflow-y: auto;
+        min-height: 0;
       }
 
       .notes-section {
@@ -276,6 +327,7 @@
         display: flex;
         gap: 12px;
         justify-content: stretch;
+        flex-shrink: 0; /* Botões sempre visíveis, não encolhem */
       }
 
       .button-group .btn {

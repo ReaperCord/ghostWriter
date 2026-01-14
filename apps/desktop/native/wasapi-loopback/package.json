@@ -1,0 +1,16 @@
+{
+  "name": "wasapi-loopback",
+  "version": "1.0.0",
+  "description": "WASAPI loopback audio capture for Windows",
+  "main": "index.js",
+  "scripts": {
+    "install": "node-gyp rebuild",
+    "build": "node-gyp rebuild",
+    "clean": "node-gyp clean"
+  },
+  "dependencies": {
+    "node-addon-api": "^7.0.0",
+    "node-gyp": "^10.0.0"
+  },
+  "gypfile": true
+}

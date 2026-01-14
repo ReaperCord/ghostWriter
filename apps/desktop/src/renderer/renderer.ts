@@ -41,8 +41,18 @@ window.ghostWriter.onTranscriptionUpdate((text) => {
 function updateTranscriptionDisplay() {
   const transcriptionEl = document.getElementById("transcription-content");
   if (transcriptionEl) {
-    transcriptionEl.textContent = currentTranscription || "Aguardando transcrição...";
-    transcriptionEl.scrollTop = transcriptionEl.scrollHeight;
+    // Preservar quebras de linha usando innerHTML com <br> ou <p>
+    const formattedText = currentTranscription
+      ? currentTranscription.split("\n\n").map(p => `<p class="transcription-paragraph">${p}</p>`).join("")
+      : "<p class=\"transcription-placeholder\">Aguardando transcrição...</p>";
+
+    transcriptionEl.innerHTML = formattedText;
+
+    // Auto-scroll suave para o final (sempre mostra o texto mais recente)
+    transcriptionEl.scrollTo({
+      top: transcriptionEl.scrollHeight,
+      behavior: "smooth"
+    });
   }
 }
 

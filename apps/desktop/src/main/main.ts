@@ -1,20 +1,21 @@
 import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import * as path from "path";
+import * as fs from "fs";
 import { StateMachine } from "./state/StateMachine";
-import { NullAudioCapture } from "./audio/NullAudioCapture";
 import { TextBuffer, Pipeline, NotesAgent, MeetingNotes } from "./cognitive";
 import { NotesStorage } from "./persistence";
+import { TranscriptionService } from "./transcription";
 
 // Configurações do usuário (temporário - será persistido depois)
 const userSettings = {
-  stealthEnabled: true
+  stealthEnabled: false
 };
 
 // Referência global da janela principal
 let mainWindow: BrowserWindow | null = null;
 
-// Audio
-const audioCapture = new NullAudioCapture();
+// Transcription Service
+let transcriptionService: TranscriptionService | null = null;
 
 // Cognitive Pipeline
 const textBuffer = new TextBuffer();
@@ -25,40 +26,59 @@ const notesStorage = new NotesStorage();
 // Estado das notas geradas (persiste entre estados)
 let generatedNotes: MeetingNotes | null = null;
 
-// Simulação de transcrição
-let simulationInterval: NodeJS.Timeout | null = null;
+// Paths para os binários nativos
+function getNativePaths() {
+  const nativeDir = path.join(__dirname, "../../native");
 
-const SIMULATED_CHUNKS = [
-  "Bom, vamos começar a reunião de hoje.",
-  "Ah, tipo, precisamos resolver o bug do login que está afetando os usuários.",
-  "Decidimos usar JWT para autenticação em vez de sessions.",
-  "Tarefa: João vai implementar o endpoint de refresh token até sexta.",
-  "A entrega do MVP ficou para o dia 15, é um prazo importante.",
-  "Temos um problema crítico com a performance do dashboard.",
-  "Optamos por usar Redis para cache das queries mais pesadas.",
-  "Maria ficou responsável por criar os testes de integração.",
-  "É fundamental que a documentação seja atualizada antes do release."
-];
-
-function startSimulation() {
-  let chunkIndex = 0;
-
-  simulationInterval = setInterval(() => {
-    if (chunkIndex < SIMULATED_CHUNKS.length && mainWindow) {
-      textBuffer.append(SIMULATED_CHUNKS[chunkIndex]);
-      mainWindow.webContents.send("transcription-update", textBuffer.getFullText());
-      chunkIndex++;
-    } else if (simulationInterval) {
-      clearInterval(simulationInterval);
-      simulationInterval = null;
-    }
-  }, 2000);
+  return {
+    whisperExe: path.join(nativeDir, "whisper/whisper.exe"),
+    whisperModel: path.join(nativeDir, "whisper/models/ggml-base.bin")
+  };
 }
 
-function stopSimulation() {
-  if (simulationInterval) {
-    clearInterval(simulationInterval);
-    simulationInterval = null;
+// Inicia o serviço de transcrição real
+function startTranscription() {
+  const paths = getNativePaths();
+  const tempDir = path.join(app.getPath("temp"), "ghostwriter-audio");
+
+  console.log("[Transcription] Iniciando serviço...");
+  console.log("[Transcription] Whisper:", paths.whisperExe);
+  console.log("[Transcription] Modelo:", paths.whisperModel);
+  console.log("[Transcription] Temp:", tempDir);
+  console.log("[Transcription] Audio: WASAPI Loopback (captura do sistema)");
+
+  transcriptionService = new TranscriptionService({
+    whisperConfig: {
+      executablePath: paths.whisperExe,
+      modelPath: paths.whisperModel,
+      language: "pt",
+      threads: 4,
+      timeoutMs: 30000
+    },
+    tempDirectory: tempDir,
+    chunkDurationSeconds: 6
+  });
+
+  transcriptionService.start((transcription) => {
+    // Formato: DD/MM/YYYY [HH:MM:SS -> HH:MM:SS]: texto
+    const taggedText = `${transcription.formattedTimestamp}: ${transcription.text}`;
+    console.log(`[Transcription] Chunk ${transcription.chunkIndex}: ${taggedText.substring(0, 80)}...`);
+
+    textBuffer.append(taggedText);
+    if (mainWindow) {
+      mainWindow.webContents.send("transcription-update", textBuffer.getFullText());
+    }
+  });
+}
+
+// Para o serviço de transcrição
+async function stopTranscription(): Promise<void> {
+  if (transcriptionService) {
+    console.log("[Transcription] Parando serviço...");
+    await transcriptionService.stop();
+    transcriptionService.cleanup();
+    transcriptionService = null;
+    console.log("[Transcription] Serviço parado");
   }
 }
 
@@ -109,7 +129,7 @@ ipcMain.handle("save-notes", async () => {
 });
 
 // IPC dispatch de eventos com ciclo de vida do pipeline
-ipcMain.handle("dispatch-event", (_event, stateEvent) => {
+ipcMain.handle("dispatch-event", async (_event, stateEvent) => {
   const prev = stateMachine.getState();
   const next = stateMachine.dispatch(stateEvent);
 
@@ -119,17 +139,15 @@ ipcMain.handle("dispatch-event", (_event, stateEvent) => {
 
     // Entrando em CAPTURING
     if (next === "CAPTURING") {
-      audioCapture.start();
       textBuffer.clear();
       generatedNotes = null;
-      startSimulation();
+      startTranscription();
       if (mainWindow) setStealth(mainWindow, true);
     }
 
     // Saindo de CAPTURING para REVIEW
     if (prev === "CAPTURING" && next === "REVIEW") {
-      audioCapture.stop();
-      stopSimulation();
+      await stopTranscription();
 
       // Processa o buffer e gera notas
       const rawText = textBuffer.getFullText();
@@ -211,8 +229,8 @@ app.whenReady().then(() => {
   createWindow();
 });
 
-app.on("window-all-closed", () => {
-  stopSimulation();
+app.on("window-all-closed", async () => {
+  await stopTranscription();
   if (process.platform !== "darwin") {
     app.quit();
   }
